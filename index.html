@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CN9 Chat</title>
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+    <div class="chat-title">컴퓨터 네트워크 9조 채팅방</div>
+    <div id="chat-container">   
+        <div style="display: flex;">
+            <div id="chat"></div>
+            <div id="users">
+                <h3 class="user-list-title">참가자 목록</h3>
+            </div> 
+
+        </div>
+        <div id="controls">
+            <input type="text" id="message" placeholder="메세지를 입력하세요" disabled>
+            <button id="sendBtn" disabled>전송</button>
+        </div>
+    </div>
+
+    <!-- Bootstrap JavaScript -->
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.5.4/dist/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const socket = io();
+        let nickname = '';
+
+        socket.on('connect', () => {
+            openModal();
+        });
+
+        function openModal() {
+            $('#nicknameModal').modal('show');
+        }
+
+        function setNickname() {
+            const nicknameInput = document.getElementById('nicknameInput').value;
+            if (nicknameInput) {
+                nickname = nicknameInput;
+                window.currentUserNickname = nickname;
+                socket.emit('join', nickname);
+                document.getElementById('message').disabled = false;
+                document.getElementById('sendBtn').disabled = false;
+                $('#nicknameModal').modal('hide');
+            }
+        }
+
+        socket.on('userJoined', ({ nickname, users }) => {
+            const chat = document.getElementById('chat');
+            const messageContainer = document.createElement('div');
+            messageContainer.classList.add('centered-message');
+            const p = document.createElement('p');
+            p.textContent = `${nickname} 님이 채팅방에 참가했습니다.`;
+            messageContainer.appendChild(p);
+            chat.appendChild(messageContainer);
+            chat.scrollTop = chat.scrollHeight;
+            updateUsersList(users);
+        });
+
+        socket.on('message', ({ nickname, message }) => {
+            const chat = document.getElementById('chat');
+            const messageContainer = document.createElement('div');
+            const p = document.createElement('p');
+            p.textContent = `${nickname}: ${message}`;
+            messageContainer.appendChild(p);
+
+            if (nickname === window.currentUserNickname) {
+                messageContainer.classList.add('my-message');
+            } else {
+                messageContainer.classList.add('their-message');
+            }
+
+            chat.appendChild(messageContainer);
+            chat.scrollTop = chat.scrollHeight;
+        });
+
+        socket.on('userLeft', ({ nickname, users }) => {
+            const chat = document.getElementById('chat');
+            const messageContainer = document.createElement('div');
+            messageContainer.classList.add('centered-message');
+            const p = document.createElement('p');
+            p.textContent = `${nickname} 님이 채팅방에서 나갔습니다.`;
+            messageContainer.appendChild(p);
+            chat.appendChild(messageContainer);
+            chat.scrollTop = chat.scrollHeight;
+            updateUsersList(users);
+        });
+
+        document.getElementById('sendBtn').onclick = () => {
+            const message = document.getElementById('message').value;
+            if (message) {
+                socket.emit('message', { nickname, message });
+                document.getElementById('message').value = '';
+            }
+        };
+
+        function updateUsersList(users) {
+            const usersDiv = document.getElementById('users');
+            usersDiv.innerHTML = '<h3 class="user-list-title">참가자 목록</h3>';
+            users.forEach(user => {
+                const p = document.createElement('p');
+                p.textContent = user;
+                usersDiv.appendChild(p);
+            });
+        }
+    </script>
+
+    <!-- Modal -->
+    <div class="modal fade" id="nicknameModal" tabindex="-1" role="dialog" aria-labelledby="nicknameModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="nicknameModalLabel">닉네임을 입력하세요</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <input type="text" class="form-control" id="nicknameInput" placeholder="닉네임">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-primary" onclick="setNickname()">확인</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</body>
+</html>
